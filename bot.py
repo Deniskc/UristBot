@@ -5,6 +5,7 @@ import re
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
+from aiogram.utils.markdown import bold
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +20,6 @@ bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 TARGET_USER_ID = -4956226056
-# TARGET_USER_ID = 1208126125
 TAGS = [
     'оценк',
     'оценщик',
@@ -32,6 +32,17 @@ TAGS = [
     'оценка', 
 ]
 
+def highlight_tags(text, tags):
+    """Выделяет найденные теги в тексте жирным шрифтом"""
+    for tag in tags:
+        if tag in text.lower():
+            # Заменяем все вхождения тега (без учета регистра)
+            text = re.sub(
+                re.compile(re.escape(tag), re.IGNORECASE),
+                lambda m: bold(m.group(0)),
+                text
+            )
+    return text
 
 # Start command
 @dp.message(Command("start"))
@@ -47,23 +58,24 @@ async def handle_group_message(message: types.Message):
     found_tags = [tag for tag in TAGS if tag in text_lower]
     RATING_PATTERN = re.compile(r'оцен[кщ]?', re.IGNORECASE)
     if found_tags or RATING_PATTERN.search(message.text):
-        try:
-            await bot.forward_message(
-                chat_id=TARGET_USER_ID,
-                from_chat_id=message.chat.id,
-                message_id=message.message_id,
+
+        #     await bot.forward_message(
+        #         chat_id=TARGET_USER_ID,
+        #         from_chat_id=message.chat.id,
+        #         message_id=message.message_id,
+        #         # disble_notification=True
+        #     )
+
+        highlighted_text = highlight_tags(message.text, found_tags)
+        # Альтернатива: можно отправлять текст + информацию о чате
+        await bot.send_message(
+            chat_id=TARGET_USER_ID,
+            text=
+                f"<i>{message.from_user.full_name} (@{message.from_user.username})</i>:\n"
+                f"{highlighted_text}",
+                parse_mode='HTML',
                 # disble_notification=True
-            )
-        except:
-            # Альтернатива: можно отправлять текст + информацию о чате
-            await bot.send_message(
-                chat_id=TARGET_USER_ID,
-                text=
-                    f"<i>{message.from_user.full_name} (@{message.from_user.username})</i>:\n"
-                    f"{message.text}",
-                    parse_mode='HTML',
-                    # disble_notification=True
-            )
+        )
 
 # Запуск бота
 async def main():
