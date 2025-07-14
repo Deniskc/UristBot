@@ -20,29 +20,17 @@ bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 TARGET_USER_ID = -4956226056
-TAGS = [
-    'оценк',
-    'оценщик',
-    'оценку', 
-    'оценить', 
-    'оценит', 
-    'оцените', 
-    'оценщ', 
-    'оцен', 
-    'оценка', 
-]
+RATING_PATTERN = re.compile(r'оцен[кщиаует]*', re.IGNORECASE)
 
-def highlight_tags(text, tags):
-    """Выделяет найденные теги в тексте жирным шрифтом"""
-    for tag in tags:
-        if tag in text.lower():
-            # Заменяем все вхождения тега (без учета регистра)
-            text = re.sub(
-                re.compile(re.escape(tag), re.IGNORECASE),
-                lambda m: bold(m.group(0)),
-                text
-            )
-    return text
+def highlight_matches(text, pattern):
+    """Выделяет все совпадения с регулярным выражением жирным шрифтом"""
+    if not text:
+        return text
+    
+    def bold_match(match):
+        return bold(match.group(0))
+    
+    return pattern.sub(bold_match, text)
 
 # Start command
 @dp.message(Command("start"))
@@ -52,29 +40,15 @@ async def cmd_start(message: types.Message):
 # Перехват всех сообщений из групп/чатов
 @dp.message(F.chat.type.in_({"group", "supergroup"}))
 async def handle_group_message(message: types.Message):
-    chat_id = message.chat.id
-    print(chat_id)
-    text_lower = message.text
-    found_tags = [tag for tag in TAGS if tag in text_lower]
-    RATING_PATTERN = re.compile(r'оцен[кщ]?', re.IGNORECASE)
-    if found_tags or RATING_PATTERN.search(message.text):
 
-        #     await bot.forward_message(
-        #         chat_id=TARGET_USER_ID,
-        #         from_chat_id=message.chat.id,
-        #         message_id=message.message_id,
-        #         # disble_notification=True
-        #     )
-
-        highlighted_text = highlight_tags(message.text, found_tags)
-        # Альтернатива: можно отправлять текст + информацию о чате
+    matches = RATING_PATTERN.findall(message.text.lower())
+    if matches:
+        highlighted_text = highlight_matches(message.text, RATING_PATTERN)
         await bot.send_message(
             chat_id=TARGET_USER_ID,
-            text=
-                f"<i>{message.from_user.full_name} (@{message.from_user.username})</i>:\n"
+            text=f"<i>{message.from_user.full_name} (@{message.from_user.username})</i>:\n"
                 f"{highlighted_text}",
-                parse_mode='HTML',
-                # disble_notification=True
+            parse_mode='HTML'
         )
 
 # Запуск бота
