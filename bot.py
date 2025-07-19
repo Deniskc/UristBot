@@ -5,7 +5,7 @@ import re
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.utils.markdown import bold
+from html import escape
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -20,7 +20,7 @@ bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 TARGET_USER_ID = -4956226056
-RATING_PATTERN = re.compile(r'оцен[кщиаует]*', re.IGNORECASE)
+RATING_PATTERN = re.compile(r'\bоцен(?:к[ауеи]|щик|ист|ивать|ять|ю|ил|ят)\b', re.IGNORECASE)
 
 def highlight_matches(text, pattern):
     """Выделяет все совпадения с регулярным выражением жирным шрифтом"""
@@ -28,7 +28,7 @@ def highlight_matches(text, pattern):
         return text
     
     def bold_match(match):
-        return bold(match.group(0))
+        return f'<b><u>{escape(match.group(0))}</u></b>'
     
     return pattern.sub(bold_match, text)
 
@@ -41,14 +41,31 @@ async def cmd_start(message: types.Message):
 @dp.message(F.chat.type.in_({"group", "supergroup"}))
 async def handle_group_message(message: types.Message):
 
-    matches = RATING_PATTERN.findall(message.text.lower())
+    chat_link = None
+    try:
+        if message.chat.username:
+            chat_link = f"https://t.me/{message.chat.username}"
+        else:
+            # Если чат приватный, пробуем получить инвайт-ссылку
+            chat_link = await bot.export_chat_invite_link(chat_id=message.chat.id)
+    except:
+        pass
+
+    if not message.text:
+        return
+    
+    matches = RATING_PATTERN.findall(message.text)
     if matches:
         highlighted_text = highlight_matches(message.text, RATING_PATTERN)
         await bot.send_message(
             chat_id=TARGET_USER_ID,
-            text=f"<i>{message.from_user.full_name} (@{message.from_user.username})</i>:\n"
-                f"{highlighted_text}",
-            parse_mode='HTML'
+            text=
+                f"<a href='{chat_link}'>Ссылка на чат</a> \n"
+                f"<b>{message.date.strftime('%d.%m.%Y в %H:%M, %A')}</b> \n"
+                f"<i>{escape(message.from_user.full_name)} (@{escape(message.from_user.username)})</i>:\n\n"
+                f"{highlighted_text}"
+                # f"</b>"
+            ,parse_mode='HTML'
         )
 
 # Запуск бота
