@@ -19,7 +19,11 @@ API_TOKEN = TOKEN
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
-TARGET_USER_ID = -4956226056
+
+with open("chat_id.txt", "r") as f:
+    TARGET_CHAT_ID = f.read()
+
+# TARGET_CHAT_ID = -4956226056
 RATING_PATTERN = re.compile(r'\bоцен(?:к[ауеи]|щик|ист|ивать|ять|ю|ил|ят)\b', re.IGNORECASE)
 
 def highlight_matches(text, pattern):
@@ -54,14 +58,16 @@ async def handle_group_message(message: types.Message):
     if not message.text:
         return
     
+    date = message.date.astimezone()
+    
     matches = RATING_PATTERN.findall(message.text)
     if matches:
         highlighted_text = highlight_matches(message.text, RATING_PATTERN)
         await bot.send_message(
-            chat_id=TARGET_USER_ID,
+            chat_id=TARGET_CHAT_ID,
             text=
                 f"<a href='{chat_link}'>Ссылка на чат</a> \n"
-                f"<b>{message.date.strftime('%d.%m.%Y в %H:%M, %A')}</b> \n"
+                f"<b>{date.strftime('%d.%m.%Y в %H:%M, %A')}</b> \n"
                 f"<i>{escape(message.from_user.full_name)} (@{escape(message.from_user.username)})</i>:\n\n"
                 f"{highlighted_text}"
                 # f"</b>"
